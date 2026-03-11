@@ -62,7 +62,9 @@ const Collection = () => {
       );
     }
 
-    setFilterProducts(filtered);
+    // Apply current sorting to the filtered list
+    const sorted = sortProduct(sortType, filtered);
+    setFilterProducts(sorted);
   };
 
   // Sort Products
@@ -73,20 +75,10 @@ const Collection = () => {
     return sorted;
   };
 
-  // Show all products when loaded
-  useEffect(() => {
-    setFilterProducts(products);
-  }, [products]);
-
   // Apply filter when anything changes
   useEffect(() => {
     applyFilter();
-  }, [brands, types, search, showSearch, products]);
-
-  // Apply sorting after filtering
-  useEffect(() => {
-    setFilterProducts((prev) => sortProduct(sortType, prev));
-  }, [sortType]);
+  }, [brands, types, search, showSearch, products, sortType]);
 
   return (
     <>
