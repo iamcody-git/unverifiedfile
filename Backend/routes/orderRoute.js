@@ -3,6 +3,8 @@ import {
   placeOrder,
   placeOrderEsewa,
   placeOrderKhalti,
+  initiateKhaltiPayment,
+  verifyKhaltiPayment,
   userOrders,
   allOrder,
   updateStatus,
@@ -20,6 +22,8 @@ orderRouter.delete("/remove/:id", adminAuth, deleteOrder);
 
 // payment feature
 orderRouter.post("/place", authUser, placeOrder);
+orderRouter.post("/khalti/initiate", authUser, initiateKhaltiPayment);
+orderRouter.post("/khalti/verify", authUser, verifyKhaltiPayment);
 orderRouter.post("/khalti", authUser, placeOrderKhalti);
 orderRouter.post("/esewa", authUser, placeOrderEsewa);
 

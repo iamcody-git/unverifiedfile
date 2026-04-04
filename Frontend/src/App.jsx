@@ -10,6 +10,7 @@ import Login from './pages/Login'
 import Orders from './pages/Orders'
 import Product from './pages/Product'
 import PlaceOrder from './pages/PlaceOrder'
+import KhaltiReturn from './pages/KhaltiReturn'
 import Contact from './pages/Contact'
 import Cart from './pages/Cart'
 import Footer from './components/Footer'
@@ -29,6 +30,7 @@ const App = () => {
         <Route path='/orders' element={<Orders/>} />
         <Route path='/product/:productId' element={<Product />} />
         <Route path='place-orders' element={<PlaceOrder/>} />
+        <Route path='/payment/khalti-return' element={<KhaltiReturn />} />
         <Route path='/contact' element={<Contact/>} />
         <Route path='/cart' element={<Cart/>} />
       </Routes>

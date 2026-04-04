@@ -53,7 +53,9 @@ const PlaceOrder = () => {
       for (const itemId in cartItems) {
         const quantity = cartItems[itemId];
         if (quantity > 0) {
-          const product = products.find((p) => p._id === itemId);
+          const product = products.find(
+            (p) => String(p._id) === String(itemId)
+          );
           if (product) {
             orderItems.push({ ...product, quantity });
           }
@@ -77,32 +79,67 @@ const PlaceOrder = () => {
       // Ensure user is logged in
       if (!token) {
         toast.error("Please login to place an order.");
-        navigate("/login");
+        navigate("/Login");
         setLoading(false);
         return;
       }
 
-      // Send order to backend with proper auth header
+      const authHeaders = {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      };
+
+      // Khalti: server initiates ePayment, then user pays on Khalti (sandbox / production).
+      // Docs: https://docs.khalti.com/khalti-epayment/
+      if (method === "khalti") {
+        const { paymentMethod: _pm, ...payload } = orderData;
+        const response = await axios.post(
+          `${backendUrl}/api/order/khalti/initiate`,
+          { ...payload, paymentMethod: "Khalti" },
+          { ...authHeaders, validateStatus: () => true }
+        );
+
+        if (response.data.success && response.data.payment_url) {
+          window.location.href = response.data.payment_url;
+          return;
+        }
+
+        toast.error(
+          response.data.message ||
+            (typeof response.data.detail === "string"
+              ? response.data.detail
+              : null) ||
+            `Could not start Khalti (${response.status}). Check backend .env KHALTI_SECRET_KEY.`
+        );
+        setLoading(false);
+        return;
+      }
+
+      // Cash on delivery (and other methods handled like COD for now)
       const response = await axios.post(
         `${backendUrl}/api/order/place`,
         orderData,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        authHeaders
       );
 
       if (response.data.success) {
-        setCartItem({}); // Clear cart
+        setCartItem({});
         toast.success("Order placed successfully!");
-        navigate("/orders"); // Redirect to orders page
+        navigate("/orders");
       } else {
         toast.error(response.data.message || "Failed to place order.");
       }
     } catch (error) {
       console.error("Error placing order:", error);
-      toast.error("Failed to place order. Please try again.");
+      const msg =
+        error.response?.data?.message ||
+        (error.code === "ERR_NETWORK"
+          ? "Cannot reach server. Check VITE_BACKEND_URL and that the API is running."
+          : null) ||
+        error.message ||
+        "Failed to place order. Please try again.";
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

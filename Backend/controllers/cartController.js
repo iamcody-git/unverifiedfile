@@ -156,3 +156,30 @@ export const getUserCart = async (req, res) => {
     });
   }
 };
+
+// Replace full cart (used after guest → login merge)
+export const syncCart = async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { cartData } = req.body;
+
+    if (!cartData || typeof cartData !== "object" || Array.isArray(cartData)) {
+      return res.status(400).json({
+        success: false,
+        message: "cartData must be an object",
+      });
+    }
+
+    const userData = await userModel.findById(userId);
+    if (!userData) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    await userModel.findByIdAndUpdate(userId, { cartData });
+
+    res.json({ success: true, cartData });
+  } catch (error) {
+    console.error("Sync cart error:", error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

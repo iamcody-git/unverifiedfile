@@ -1,4 +1,4 @@
-import { createContext, useEffect, useState } from "react";
+import { createContext, useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
@@ -17,6 +17,9 @@ const ShopContextProvider = ({ children }) => {
   const [products, setProducts] = useState([]);
 
   const [token, setToken] = useState(localStorage.getItem("token") || "");
+
+  const prevTokenRef = useRef(null);
+  const cartSnapshotRef = useRef({});
 
   const navigate = useNavigate();
 
@@ -49,27 +52,10 @@ const ShopContextProvider = ({ children }) => {
     }
   };
 
-  // Fetch user cart
-  const getUserCart = async () => {
-    if (!token) return;
-
-    try {
-      const res = await axios.post(
-        `${backendUrl}/api/cart/get`,
-        {},
-        getAuthHeader()
-      );
-
-      if (res.data.success) {
-        setCartItem(res.data.cartData || {});
-      } else {
-        toast.error("Failed to load cart");
-      }
-    } catch (err) {
-      console.error(err);
-      toast.error("Could not fetch cart");
-    }
-  };
+  // Keep latest cart for merge when user logs in (guest cart + server cart)
+  useEffect(() => {
+    cartSnapshotRef.current = cartItem;
+  }, [cartItem]);
 
   // Add item to cart
   const addToCart = async (itemId) => {
@@ -153,7 +139,7 @@ const ShopContextProvider = ({ children }) => {
     let total = 0;
 
     for (const id in cartItem) {
-      const product = products.find((p) => p._id === id);
+      const product = products.find((p) => String(p._id) === String(id));
 
       if (product) {
         total += product.price * cartItem[id];
@@ -164,16 +150,65 @@ const ShopContextProvider = ({ children }) => {
   };
 
   useEffect(() => {
+    const previousToken = prevTokenRef.current;
+    prevTokenRef.current = token;
+
     getProductData();
 
+    const loadCartForLoggedInUser = async () => {
+      if (!token) return;
+
+      try {
+        const res = await axios.post(
+          `${backendUrl}/api/cart/get`,
+          {},
+          getAuthHeader()
+        );
+
+        if (!res.data.success) {
+          toast.error("Failed to load cart");
+          return;
+        }
+
+        const server = res.data.cartData || {};
+        const guestJustLoggedIn =
+          previousToken === "" && token && Object.keys(cartSnapshotRef.current).length > 0;
+
+        if (guestJustLoggedIn) {
+          const local = cartSnapshotRef.current;
+          const merged = { ...server };
+          for (const k of Object.keys(local)) {
+            const key = String(k);
+            merged[key] =
+              (Number(merged[key]) || 0) + Number(local[key] || 0);
+          }
+          setCartItem(merged);
+          try {
+            await axios.post(
+              `${backendUrl}/api/cart/sync`,
+              { cartData: merged },
+              getAuthHeader()
+            );
+          } catch (syncErr) {
+            console.error(syncErr);
+            toast.error("Could not sync cart to account");
+          }
+        } else {
+          setCartItem(server);
+        }
+      } catch (err) {
+        console.error(err);
+        toast.error("Could not fetch cart");
+      }
+    };
+
     if (token) {
-      getUserCart();
+      loadCartForLoggedInUser();
     }
 
-    // Auto-refresh products so new admin uploads appear without reload
     const intervalId = setInterval(() => {
       getProductData();
-    }, 10000); // every 10 seconds
+    }, 10000);
 
     return () => clearInterval(intervalId);
   }, [token]);

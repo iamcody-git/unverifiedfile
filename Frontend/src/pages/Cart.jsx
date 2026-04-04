@@ -12,13 +12,22 @@ const Cart = () => {
   useEffect(() => {
     const tempData = [];
     for (const id in cartItems) {
-      tempData.push({
-        _id: id,
-        quantity: cartItems[id],
-      });
+      if (cartItems[id] > 0) {
+        tempData.push({
+          _id: id,
+          quantity: cartItems[id],
+        });
+      }
     }
     setCartData(tempData);
   }, [cartItems]);
+
+  const visibleLines = CartData.filter((item) => {
+    const product = products.find(
+      (p) => String(p._id) === String(item._id)
+    );
+    return Boolean(product);
+  });
 
   return (
     <div className="border-t pt-14">
@@ -26,8 +35,20 @@ const Cart = () => {
         <Title text1="Your" text2="CART" />
       </div>
 
+      {CartData.length === 0 ? (
+        <p className="text-gray-500 py-10">No items in your cart.</p>
+      ) : visibleLines.length === 0 && products.length === 0 ? (
+        <p className="text-gray-500 py-10">Loading cart…</p>
+      ) : visibleLines.length === 0 ? (
+        <p className="text-gray-500 py-10">
+          Some cart items are no longer available. Try adding products again.
+        </p>
+      ) : null}
+
       {CartData.map((item, idx) => {
-        const product = products.find((p) => p._id === item._id);
+        const product = products.find(
+          (p) => String(p._id) === String(item._id)
+        );
         if (!product) return null;
 
         return (
